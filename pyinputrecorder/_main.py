@@ -11,13 +11,28 @@ ctypes.windll.shcore.SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE)
 
 SAVED_FILE_PATH = Path.home() / "pyinputrecorder_saved_macro"
 
-def on_click(x, y, button, pressed):
-    print('{0} at {1}   {2}'.format(
-        'Pressed' if pressed else 'Released',
-        (x, y),
-        button.name))
-    with open(SAVED_FILE_PATH, "a") as f:
-        f.write(f"m,{time.time()},{button.name},{x},{y},{pressed}\n")
+class MouseFunctions:
+    def __init__(self, mode:str) -> None:
+        self.mode = mode
+        assert self.mode in ["a", "r"]
+        _controller = mouse.Controller()
+        self.current_x, self.current_y = _controller.position
+
+    def on_click(self, x, y, button, pressed):
+        print('{0} at {1}   {2}'.format(
+            'Pressed' if pressed else 'Released',
+            (x, y),
+            button.name))
+        if self.mode == "r":
+            old_x = x
+            old_y = y
+            x = x - self.current_x
+            y = y - self.current_y
+            self.current_x = old_x
+            self.current_y = old_y
+
+        with open(SAVED_FILE_PATH, "a") as f:
+            f.write(f"m{self.mode},{time.time()},{button.name},{x},{y},{pressed}\n")
         
 # Keyboard functions
 class KeyboardFunctions:
@@ -47,14 +62,15 @@ class KeyboardFunctions:
         self.write_keyboard_data(key, False)
 
 
-def setup_listeners():
+def setup_listeners(mode:str):
     with open(SAVED_FILE_PATH, "w") as f:
         f.write("")
-        
+
+    mouse_functions = MouseFunctions(mode)
     mouse_listener = mouse.Listener(
         # on_move=on_move,
         # on_scroll=on_scroll,
-        on_click=on_click)
+        on_click=mouse_functions.on_click)
     mouse_listener.start()
 
     keyboard_function = KeyboardFunctions()
@@ -78,22 +94,27 @@ def repeat_macro():
         previous_ts = None
         ts = button_name = x = y = pressed = key = other = None
         for line in f:
+            code = line.split(",")[0]
             is_mouse = False
             processed_line = line.strip().split(",")
-            if line[0] == "m":
+            if code == "k":
+                ts, key, pressed = processed_line[1:]
+            else:
                 is_mouse = True
                 ts, button_name, x, y, pressed = processed_line[1:]
-            else:
-                ts, key, pressed = processed_line[1:]
             ts = float(ts)
             if previous_ts is None:
                 previous_ts = ts
 
             time.sleep(ts - previous_ts)
-            print(ts - previous_ts)
+            # print(ts - previous_ts)
             if is_mouse:
-                print("event: ", x, y, pressed)
-                mouse_controller.position = (int(x), int(y))
+                print("event: ", code, x, y, pressed)
+                if code[1] == "a":
+                    mouse_controller.position = (int(x), int(y))
+                elif code[1] == "r":
+                    mouse_controller.move(int(x), int(y))
+
                 if pressed == "True":
                     mouse_controller.press(mouse.Button[button_name])
                 else:
