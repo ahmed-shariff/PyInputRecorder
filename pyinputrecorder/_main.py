@@ -87,11 +87,14 @@ def setup_listeners(mode:str):
     mouse_listener.stop()
 
 
-def repeat_macro():
+def repeat_macro(speed: float):
     mouse_controller = mouse.Controller()
     keyboard_controller = keyboard.Controller()
+    assert speed > 0, f"Speed was {speed}, should above 0."
+    speed = speed / 100
     with open(SAVED_FILE_PATH, "r") as f:
         previous_ts = None
+        base_ts = None
         ts = button_name = x = y = pressed = key = other = None
         for line in f:
             code = line.split(",")[0]
@@ -103,6 +106,11 @@ def repeat_macro():
                 is_mouse = True
                 ts, button_name, x, y, pressed = processed_line[1:]
             ts = float(ts)
+            if base_ts is None:
+                base_ts = ts
+
+            ts = (ts - base_ts) * speed
+
             if previous_ts is None:
                 previous_ts = ts
 

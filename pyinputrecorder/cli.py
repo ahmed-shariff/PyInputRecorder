@@ -16,6 +16,7 @@ def r(mouse_relative):
 
 
 @cli.command()
-def u():
+@click.option("-s", "--speed", type=int, default=100, help="How fast should the times be as a precentage. (100 is as recorded)")
+def u(speed):
     """Replay recorded kb/m stream."""
-    repeat_macro()
+    repeat_macro(speed)
